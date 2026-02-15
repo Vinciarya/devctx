@@ -278,6 +278,21 @@ const EDITORS = [
     block: () => stdioBlock(SERVER),
     note: "Requires mcp.el. See: github.com/lizqwerscott/mcp.el",
   },
+  {
+    id: "antigravity",
+    name: "Antigravity (Agentic AI)",
+    detect: () => {
+      const path = OS === "win32"
+        ? join(HOME, ".gemini", "antigravity", "mcp_config.json")
+        : join(HOME, ".gemini", "antigravity", "mcp_config.json"); // Same for Linux/Mac in this env
+      return existsSync(path);
+    },
+    configPath: () => {
+      return join(HOME, ".gemini", "antigravity", "mcp_config.json");
+    },
+    block: () => stdioBlock(SERVER),
+    note: "Restart your Antigravity session to see the new tools.",
+  },
 ];
 
 // ─── Configure one editor ─────────────────────────────────────────────────────

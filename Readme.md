@@ -2,113 +2,61 @@
 
 > **"Git tracks your code history. DevContext tracks your intent history."**
 
-Persistent AI coding context for teams — implemented as a **Model Context Protocol (MCP) server**.
+DevContext brings **token-efficient, persistent intent history** to AI-native IDEs (Cursor, Claude Code, Windsurf, Zed, etc.) via the Model Context Protocol (MCP). It solves the "Goldfish Memory" problem by preserving architectural decisions, failed approaches, and task state across sessions.
 
 ---
 
-## 🔥 ROAST OF THE ORIGINAL IDEA (AND HOW THIS FIXES IT)
+## 🚀 Professional Workflow
 
-### Problem 1 — Manual saving is a fantasy
-The original CLI (`devctx save`) assumes developers will stop after every session and type structured context. They won't. Context saves need to be **automatic or near-zero friction**, not an interactive wizard.
+DevContext is designed to be low-friction. It shouldn't feel like adding "documentation"; it's part of your development loop.
 
-**Fix:** `devctx_summarize` uses AI to read your git diff + recent commits and auto-generates the context entry. Zero typing required. Also: MCP agents can call `devctx_save` automatically mid-session.
-
-### Problem 2 — The prompt was a wall of markdown
-The original `devctx resume` just copied context to clipboard. But if your prompt is a markdown dump, the AI treats everything as equally important — it ignores half of it.
-
-**Fix:** `buildResumePrompt()` uses a **structured, role-anchored prompt** with explicit sections:
-- `ROLE` block — anchors the AI's mental model immediately
-- `⛔ APPROACHES THAT FAILED` — prevents the AI from re-suggesting what didn't work
-- `ARCHITECTURAL DECISIONS (SETTLED)` — stops the AI from relitigating closed debates
-- `CONSTRAINTS` — hard limits the AI cannot violate
-- `YOUR TASK NOW` — single, focused question (prevents rambling responses)
-
-### Problem 3 — Clipboard is a terrible interface
-Copy-paste is fragile. It doesn't work in automated pipelines, breaks in headless environments, and requires manual action each time.
-
-**Fix:** This is an **MCP server**. Claude Code, Cursor, and Windsurf can read `devctx://context` as a **resource** — automatic context injection with zero paste-and-pray.
-
-### Problem 4 — No failure memory
-The original captured "approaches tried" as a flat string. If you write `"tried event sourcing"`, the AI doesn't know if it succeeded or failed. Next session, it suggests event sourcing again.
-
-**Fix:** Approaches are structured as `{ description, failed: boolean, reason }`. Failed approaches are rendered in a clearly labeled `⛔` section that explicitly instructs the AI not to re-suggest them.
-
-### Problem 5 — Team handoffs were treated as regular saves
-Handing off to a teammate is a different communication act than saving your own context. It needs different framing, a different prompt structure, and explicit targeting.
-
-**Fix:** `devctx_handoff` generates a teammate-specific prompt with a `Hey @user` opening, a "Don't Re-debate These" decisions block, and a "Your First Move" single-action opener.
-
-### Problem 6 — `.devctx/` in git is a good idea, buried in a CLI flag
-`devctx share` was an optional command. But committing context to git should be the **default workflow** — it's how teams sync without a backend.
-
-**Fix:** All context is stored in `.devctx/` which is explicitly designed to be committed. `devctx_share` stages it for you. No backend required.
+1.  **Initialize**: Run `devctx_init` once in your repository.
+2.  **Save**: At the end of a session or after a major decision, run `devctx_save`.
+3.  **Resume**: Starting a new session? Run `devctx_resume` to feed the AI exactly what happened since you were last here.
+4.  **Sync**: Commit the `.devctx/` folder. Your team now has shared context without a database.
 
 ---
 
-## Architecture
+## 🛠️ Setup in Your IDE
 
-```
-devctx/
-├── src/
-│   ├── index.js      ← MCP Server (all tools + resource)
-│   ├── storage.js    ← .devctx/ persistence layer
-│   ├── git.js        ← Git read/write helpers
-│   ├── prompts.js    ← High-value structured prompt templates
-│   └── cli.js        ← Optional CLI (delegates to same logic)
-└── package.json
-```
+Since this is a local server, you can point your editor directly to your local installation.
 
----
-
-## Install
+### 1. Installation
 
 ```bash
-npm install -g devctx
+npm install                     # Install dependencies
+node setup.js --print           # Preview your editor-specific config
 ```
 
-Or run directly with npx (recommended for MCP):
+### 2. Configure Editor (Recommended)
+
+Run the interactive setup to auto-detect and configure your installed editors:
 
 ```bash
-npx -y devctx mcp
+node setup.js
 ```
 
----
+### 3. Manual Configuration
 
-## MCP Configuration
+If you prefer manual setup, add this to your MCP settings file:
 
-Add to your MCP config file:
+| Editor             | Settings File Location                         |
+| :----------------- | :--------------------------------------------- |
+| **Cursor**         | `~/.cursor/mcp.json`                           |
+| **Claude Desktop** | `%APPDATA%\Claude\claude_desktop_config.json`  |
+| **Windsurf**       | `~/.codeium/windsurf/mcp_config.json`          |
+| **Antigravity**    | `~/.gemini/antigravity/mcp_config.json`        |
+| **Zed**            | `settings.json` (Open via Zed command palette) |
 
-**Claude Code / Claude Desktop** (`~/.claude/claude_desktop_config.json`):
+**Stdio Config Example:**
+
 ```json
 {
   "mcpServers": {
     "devctx": {
-      "command": "npx",
-      "args": ["-y", "devctx", "mcp"]
-    }
-  }
-}
-```
-
-**Cursor** (`.cursor/mcp.json` in repo or `~/.cursor/mcp.json`):
-```json
-{
-  "mcpServers": {
-    "devctx": {
-      "command": "npx",
-      "args": ["-y", "devctx", "mcp"]
-    }
-  }
-}
-```
-
-**Windsurf** (`.windsurf/mcp_config.json`):
-```json
-{
-  "mcpServers": {
-    "devctx": {
-      "command": "npx",
-      "args": ["-y", "devctx", "mcp"]
+      "command": "node",
+      "args": ["C:\\Path\\To\\devctx\\index.js"],
+      "env": {}
     }
   }
 }
@@ -116,125 +64,79 @@ Add to your MCP config file:
 
 ---
 
-## MCP Tools Reference
+## 🏃 Running & Testing
 
-| Tool | Description | Requires AI Key |
-|------|-------------|:---:|
-| `devctx_init` | Initialize .devctx/ in repo | No |
-| `devctx_save` | Save context entry | No |
-| `devctx_resume` | Generate restore prompt | No |
-| `devctx_log` | View context history | No |
-| `devctx_diff` | Git diff since last save | No |
-| `devctx_handoff` | Create teammate handoff note | No |
-| `devctx_share` | Stage .devctx/ for git commit | No |
-| `devctx_summarize` | AI auto-generate context from git | ✅ |
-| `devctx_suggest` | AI suggest next steps | ✅ |
-| `devctx_compress` | Compress old history into summary | No |
-| `devctx_config_set` | Set config value | No |
-| `devctx_config_list` | View config | No |
+### 1. Manual Start (Debugging)
 
-## MCP Resource
-
-| URI | Description |
-|-----|-------------|
-| `devctx://context` | Latest context for current branch (auto-injected) |
-| `devctx://context/{branch}` | Context for a specific branch |
-| `devctx://context/entry/{id}` | Specific context entry by ID |
-
----
-
-## AI Features
-
-Set your AI key:
-```bash
-export DEVCTX_AI_KEY=sk-...         # OpenAI key
-export DEVCTX_AI_BASE_URL=...       # Optional: any OpenAI-compatible endpoint
-```
-
-Or pass `aiApiKey` / `aiBaseUrl` directly to `devctx_summarize` and `devctx_suggest`.
-
----
-
-## Workflow Example
-
-**End of session (Claude Code will call this automatically via MCP):**
-```
-devctx_save({
-  task: "Refactoring payment service to use event sourcing",
-  goal: "Decouple payment processing from order state management",
-  approaches: [
-    { description: "Direct DB write in payment handler", failed: true, reason: "Race condition on concurrent orders" },
-    { description: "Saga pattern with Redis", failed: true, reason: "Ops doesn't want to run Redis" },
-    { description: "Event sourcing with Postgres LISTEN/NOTIFY", failed: false }
-  ],
-  decisions: [
-    "Using Postgres LISTEN/NOTIFY (not Kafka — overkill for current scale)",
-    "Event schema is immutable — append-only, no updates"
-  ],
-  state: "PaymentEventStore class written, tests passing. OrderProjection half done.",
-  nextSteps: [
-    "Complete OrderProjection.rebuild() method",
-    "Write migration for events table",
-    "Update API layer to publish events instead of direct writes"
-  ],
-  constraints: [
-    "Must not break existing /api/payments public API",
-    "No new infrastructure dependencies"
-  ]
-})
-```
-
-**Next morning (any editor):**
-```
-devctx_resume({ branch: "feat/payment-event-sourcing" })
-```
-
-Returns a structured prompt ready to paste — with failed approaches clearly marked so the AI never suggests Redis again.
-
----
-
-## CLI (Optional)
+To verify the server starts correctly without an IDE:
 
 ```bash
-devctx init
-devctx save                  # Interactive
-devctx save "quick message"  # Quick mode
-devctx save --auto           # From git history
-devctx resume                # Copies prompt to clipboard
-devctx log                   # History
-devctx share                 # Stage for git
+# Start in Stdio mode (standard)
+npm start
+
+# Start in HTTP mode (for browser-based IDEs or remote access)
+npm run http
 ```
+
+### 2. Health Check
+
+If running in HTTP mode, you can verify it's alive:
+
+```bash
+npm run health
+# OR manually
+curl http://localhost:3741/health
+```
+
+### 3. Testing with MCP Inspector
+
+The gold standard for testing MCP servers is the [MCP Inspector](https://github.com/modelcontextprotocol/inspector):
+
+```bash
+npx @modelcontextprotocol/inspector node index.js
+```
+
+This will open a web interface where you can manually trigger tools like `devctx_init` and see the JSON-RPC traffic.
 
 ---
 
-## How Context Is Stored
+## 📡 MCP Resources
 
-Each entry in `.devctx/` is a plain JSON file:
+DevContext provides resources that some IDEs can "subscribe" to for automatic context injection:
 
-```json
-{
-  "id": "ctx_1720000000000_ab3f7",
-  "timestamp": "2025-01-15T09:23:11.000Z",
-  "branch": "feat/payment-event-sourcing",
-  "task": "Refactoring payment service to use event sourcing",
-  "goal": "Decouple payment processing from order state",
-  "approaches": [
-    { "description": "Saga with Redis", "failed": true, "reason": "No Redis in prod" }
-  ],
-  "decisions": ["Using Postgres LISTEN/NOTIFY"],
-  "state": "PaymentEventStore done. OrderProjection 50% complete.",
-  "nextSteps": ["Complete OrderProjection.rebuild()"],
-  "constraints": ["Must not break public API"],
-  "filesChanged": ["src/payments/EventStore.ts", "src/orders/Projection.ts"],
-  "author": "Alice Chen",
-  "metadata": { "commitHash": "a3f7c89" }
-}
-```
+- `devctx://context` (80 tokens)
+- `devctx://context/standard` (250 tokens)
+- `devctx://context/full` (600 tokens)
 
-Commit `.devctx/` to git. That's your team sync layer — no backend required.
+_Note: Resources are "read-only" views of your latest context. Use tools (above) to modify the context._
 
 ---
 
-## License
+## 🧩 Core Tools
+
+| Tool               | Usage                                                                                     |
+| :----------------- | :---------------------------------------------------------------------------------------- |
+| `devctx_init`      | Setup `.devctx/` directory in the current project.                                        |
+| `devctx_save`      | Save task, state, and **failed approaches** (stops AI from re-suggesting bad ideas).      |
+| `devctx_resume`    | Restores context. Supports `tier`: `minimal` (80 tokens), `standard` (250), `full` (600). |
+| `devctx_log`       | Review recent context snapshots and branch progress.                                      |
+| `devctx_diff`      | Show git changes since last context save.                                                 |
+| `devctx_handoff`   | Generate a specialized prompt for handing work to a teammate or AI sub-agent.             |
+| `devctx_share`     | Stage `.devctx/` in git so teammates can sync context.                                    |
+| `devctx_summarize` | AI-powered: Scans git diffs to auto-generate a context entry (Requires `DEVCTX_AI_KEY`).  |
+| `devctx_suggest`   | AI-powered: Suggest next steps based on current context (Requires `DEVCTX_AI_KEY`).       |
+
+---
+
+## 💡 Why DevContext?
+
+- **Token Efficiency**: A 600-token prompt injected 20 times wastes **12,000 tokens**. DevContext's `minimal` tier orientation uses only **80 tokens**—an 87% saving.
+- **Explicit Failure Memory**: Tracks approaches as `{ failed: true, reason: "..." }`. The next session's AI is explicitly told _not_ to suggest those approaches again.
+- **Git-Centric**: Context is stored as plain JSON in `.devctx/`. No external database, no cloud sub, just git.
+- **Universal**: Works across any transport (Stdio or HTTP/SSE) and any editor supporting the Model Context Protocol.
+
+---
+
+## 📜 License
 
 MIT
