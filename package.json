@@ -1,0 +1,22 @@
+{
+  "name": "devctx",
+  "version": "2.0.0",
+  "description": "Token-efficient persistent AI coding context — universal MCP server",
+  "type": "module",
+  "bin": {
+    "devctx": "./cli.js"
+  },
+  "scripts": {
+    "setup":  "node setup.js",
+    "start":  "node index.js",
+    "http":   "node http.js",
+    "health": "curl -s http://localhost:3741/health | node -e \"process.stdin.resume();let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d)))\""
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "^3.22.4"
+  },
+  "engines": { "node": ">=18.0.0" },
+  "keywords": ["mcp", "ai", "context", "cursor", "claude-code", "windsurf", "zed", "universal"],
+  "license": "MIT"
+}
