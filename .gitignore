@@ -25,6 +25,6 @@ dist/
 *.swp
 *.swo
 
-# DevContext (Optional: uncomment if you want context to be private)
-# .devctx/branches/*/
-# .devctx/config.json
+# DevContext
+.devctx/
+
